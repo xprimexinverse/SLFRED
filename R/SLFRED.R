@@ -35,6 +35,8 @@ SLFRED.env$series_base_url <- "https://api.stlouisfed.org/fred/series?series_id=
 # API key (which can be used by multiple users of the software)
 SLFRED.env$api_key <- "&api_key=498dd227ac96d062170aef43ccef93f0"
 
+# FRED Data URL
+SLFRED.env$base_url <- "https://fred.stlouisfed.org/data/"
 
 # Read data functions -----------------------------------------------------
 
@@ -44,7 +46,7 @@ SLFRED.env$api_key <- "&api_key=498dd227ac96d062170aef43ccef93f0"
 #' @export
 #' @author Graeme Walsh
 #' @details The data is downloaded from the FRED API
-getFRED <- function(series_id){
+getSLFRED <- function(series_id){
 
   # Get the data
   obs <- getObs(series_id)
@@ -149,4 +151,37 @@ getSeriesMeta <- function(series_id){
   metadata <- list(title=series_title, start=series_start, end=series_end, frequency=series_freq, freq=series_freq_short, seas_adj=series_sa, sa=series_sa_short, units=series_units, u=series_units_short, last_update=series_last, notes=series_notes)
 
   return(metadata)
+}
+
+#' @title Get a time-series from the FRED
+#' @description Downloads a time-series from FRED into R
+#' @param series_id The series id for the time-series to be downloaded
+#' @importFrom utils download.file read.table
+#' @export
+#' @author Graeme Walsh
+#' @details The data is downloaded from the FRED data folder (not using the API).
+getSLFRED2 <- function(series_id){
+
+  # Create a .txt temp file
+  temp <- tempfile(fileext = ".txt")
+
+  # Download the file
+  download.file(paste0(SLFRED.env$base_url, series_id, ".txt"), temp)
+
+  # Read the file and get the number of header lines
+  data <- readLines(temp)
+  numHeaderLines <- grep("DATE", data) - 1
+
+  # Read the metadata
+  metadata <- readLines(temp, n = numHeaderLines)
+
+  # Read the numerical data
+  numdata <- read.table(temp, skip = numHeaderLines, header = TRUE, stringsAsFactors = FALSE, na.strings = ".")
+  numdata[,"DATE"] <- as.Date(numdata[,"DATE"])
+  numdata[,"VALUE"] <- as.numeric(numdata[,"VALUE"])
+
+  # Package the data into a list
+  fred_data <- list(data = numdata, metadata = metadata)
+
+  return(fred_data)
 }
